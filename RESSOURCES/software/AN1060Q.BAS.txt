@@ -1,0 +1,179 @@
+1 ' ***********************************************************************
+2 ' *
+3 ' *    E9BUF.BAS - A PROGRAM TO DEMONSTRATE THE USE OF THE BOOT MODE
+4 ' *                   ON THE HC11 BY PROGRAMMING AN HC711E9 WITH
+5 ' *                   BUFFALO 3.4
+6 ' *
+7 ' *                REQUIRES THAT THE S-RECORDS FOR BUFFALO (BUF34.S19)
+8 ' *                   BE AVAILABLE IN THE SAME DIRECTORY OR FOLDER
+9 ' *
+10 '*                THIS PROGRAM HAS BEEN RUN BOTH ON A MS-DOS COMPUTER
+11 '*                   USING QUICKBASIC 4.5 AND ON A MACINTOSH USING
+12 '*                   QUICKBASIC 1.0.
+14 '*
+15 '************************************************************************
+25 H$ = "0123456789ABCDEF"      'STRING TO USE FOR HEX CONVERSIONS
+30 DEFINT B, I: CODESIZE% = 8192: ADRSTART= 57344!
+35 BOOTCOUNT = 25               'NUMBER OF BYTES IN BOOT CODE
+40 DIM CODE%(CODESIZE%)         'BUFFALO 3.4 IS 8K BYTES LONG
+45 BOOTCODE$ = ""               'INTIALIZE BOOTCODE$ TO NULL
+49 REM ***** READ IN AND SAVE THE CODE TO BE BOOT LOADED *****
+50 FOR I = 1 TO BOOTCOUNT       '# OF BYTES IN BOOT CODE
+55 READ Q$
+60 A$ = MID$(Q$, 1, 1)
+65 GOSUB 7000                   'CONVERTS HEX DIGIT TO DECIMAL
+70 TEMP = 16 * X                'HANG ON TO UPPER DIGIT
+75 A$ = MID$(Q$, 2, 1)
+80 GOSUB 7000
+85 TEMP = TEMP + X
+90 BOOTCODE$ = BOOTCODE$ + CHR$(TEMP)   'BUILD BOOT CODE
+95 NEXT I
+96 REM ***** S-RECORD CONVERSION STARTS HERE *****
+97 FILNAM$="BUF34.S19"          'DEFAULT FILE NAME FOR S-RECORDS
+100 CLS
+105 PRINT "Filename.ext of S-record file to be downloaded (";FILNAM$;") ";
+107 INPUT Q$
+110 IF Q$<>"" THEN FILNAM$=Q$
+120 OPEN FILNAM$ FOR INPUT AS #1
+130 PRINT : PRINT "Converting "; FILNAM$; " to binary..."
+999 REM ***** SCANS FOR 'S1' RECORDS *****
+1000 GOSUB 6000                  'GET 1 CHARACTER FROM INPUT FILE
+1010 IF FLAG THEN 1250           'FLAG IS EOF FLAG FROM SUBROUTINE
+1020 IF A$ <> "S" THEN 1000
+1022 GOSUB 6000
+1024 IF A$ <> "1" THEN 1000
+1029 REM ***** S1 RECORD FOUND, NEXT 2 HEX DIGITS ARE THE BYTE COUNT *****
+1030 GOSUB 6000
+1040 GOSUB 7000                  'RETURNS DECIMAL IN X
+1050 BYTECOUNT = 16 * X          'ADJUST FOR HIGH NIBBLE
+1060 GOSUB 6000
+1070 GOSUB 7000
+1080 BYTECOUNT = BYTECOUNT + X   'ADD LOW NIBBLE
+1090 BYTECOUNT = BYTECOUNT - 3   'ADJUST FOR ADDRESS + CHECKSUM
+1099 REM ***** NEXT 4 HEX DIGITS BECOME THE STARTING ADDRESS FOR THE DATA *****
+1100 GOSUB 6000                  'GET FIRST NIBBLE OF ADDRESS
+1102 GOSUB 7000                  'CONVERT TO DECIMAL
+1104 ADDRESS= 4096 * X
+1106 GOSUB 6000                  'GET NEXT NIBBLE
+1108 GOSUB 7000
+1110 ADDRESS= ADDRESS+ 256 * X
+1112 GOSUB 6000
+1114 GOSUB 7000
+1116 ADDRESS= ADDRESS+ 16 * X
+1118 GOSUB 6000
+1120 GOSUB 7000
+1122 ADDRESS= ADDRESS+ X
+1124 ARRAYCNT = ADDRESS-ADRSTART        'INDEX INTO ARRAY
+1129 REM ***** CONVERT THE DATA DIGITS TO BINARY AND SAVE IN THE ARRAY *****
+1130 FOR I = 1 TO BYTECOUNT
+1140 GOSUB 6000
+1150 GOSUB 7000
+1160 Y = 16 * X                 'SAVE UPPER NIBBLE OF BYTE
+1170 GOSUB 6000
+1180 GOSUB 7000
+1190 Y = Y + X                  'ADD LOWER NIBBLE
+1200 CODE%(ARRAYCNT) = Y        'SAVE BYTE IN ARRAY
+1210 ARRAYCNT = ARRAYCNT + 1    'INCREMENT ARRAY INDEX
+1220 NEXT I
+1230 GOTO 1000
+1250 CLOSE 1
+1499 REM ***** DUMP BOOTLOAD CODE TO PART *****
+1500 'OPEN "R",#2,"COM1:1200,N,8,1" 'MacIntosh COM statement
+1505 OPEN "COM1:1200,N,8,1,CD0,CS0,DS0,RS" FOR RANDOM AS #2 'DOS COM statement
+1510 INPUT "Comm port open"; Q$
+1512 WHILE LOC(2) >0            'FLUSH INPUT BUFFER
+1513 GOSUB 8020
+1514 WEND
+1515 PRINT : PRINT "Sending bootload code to target part..."
+1520 A$ = CHR$(255) + BOOTCODE$ 'ADD HEX FF TO SET BAUD RATE ON TARGET HC11
+1530 GOSUB 6500
+1540 PRINT
+1550 FOR I = 1 TO BOOTCOUNT     '# OF BYTES IN BOOT CODE BEING ECHOED
+1560 GOSUB 8000
+1564 K=ASC(B$):GOSUB 8500
+1565 PRINT "Character #"; I; " received = "; HX$
+1570 NEXT I
+1590 PRINT "Programming is ready to begin.": INPUT "Are you ready"; Q$
+1595 CLS
+1597 WHILE LOC(2) > 0           'FLUSH INPUT BUFFER
+1598 GOSUB 8020
+1599 WEND
+1600 XMT = 0: RCV = 0           'POINTERS TO XMIT AND RECEIVE BYTES
+1610 A$ = CHR$(CODE%(XMT))
+1620 GOSUB 6500                 'SEND FIRST BYTE
+1625 FOR I = 1 TO CODESIZE% - 1         'ZERO BASED ARRAY 0 -> CODESIZE-1
+1630 A$ = CHR$(CODE%(I))        'SEND SECOND BYTE TO GET ONE IN QUEUE
+1635 GOSUB 6500                 'SEND IT
+1640 GOSUB 8000                 'GET BYTE FOR VERIFICATION
+1650 RCV = I - 1
+1660 LOCATE 10,1:PRINT "Verifying byte #"; I; "    "
+1664 IF CHR$(CODE%(RCV)) = B$ THEN 1670
+1665 K=CODE%(RCV):GOSUB 8500
+1666 LOCATE 1,1:PRINT "Byte #"; I; "    ", " - Sent "; HX$;
+1668 K=ASC(B$):GOSUB 8500
+1669 PRINT "  Received "; HX$;
+1670 NEXT I
+1680 GOSUB 8000                 'GET BYTE FOR VERIFICATION
+1690 RCV = CODESIZE% - 1
+1700 LOCATE 10,1:PRINT "Verifying byte #"; CODESIZE%; "    "
+1710 IF CHR$(CODE%(RCV)) = B$ THEN 1720
+1713 K=CODE(RCV):GOSUB 8500
+1714 LOCATE 1,1:PRINT "Byte #"; CODESIZE%; "    ", " - Sent "; HX$;
+1715 K=ASC(B$):GOSUB 8500
+1716 PRINT "  Received "; HX$;
+1720 LOCATE 8, 1: PRINT : PRINT "Done!!!!"
+4900 CLOSE
+4910 INPUT "Press [RETURN] to quit...", Q$
+5000 END
+5900 '***********************************************************************
+5910 '*         SUBROUTINE TO READ IN ONE BYTE FROM A DISK FILE
+5930 '*                 RETURNS BYTE IN A$
+5940 '***********************************************************************
+6000 FLAG = 0
+6010 IF EOF(1) THEN FLAG = 1: RETURN
+6020 A$ = INPUT$(1, #1)
+6030 RETURN
+6490 '***********************************************************************
+6492 '*         SUBROUTINE TO SEND THE STRING IN A$ OUT TO THE DEVICE
+6494 '*                 OPENED AS FILE #2.
+6496 '***********************************************************************
+6500 PRINT #2, A$;
+6510 RETURN
+6590 '***********************************************************************
+6594 '*         SUBROUTINE THAT CONVERTS THE HEX DIGIT IN A$ TO AN INTEGER
+6596 '***********************************************************************
+7000 X = INSTR(H$, A$)
+7010 IF X = 0 THEN FLAG = 1
+7020 X = X - 1
+7030 RETURN
+7990 '**********************************************************************
+7992 '*         SUBROUTINE TO READ IN ONE BYTE THROUGH THE COMM PORT OPENED
+7994 '*                 AS FILE #2.  WAITS INDEFINITELY FOR THE BYTE TO BE
+7996 '*                 RECEIVED.  SUBROUTINE WILL BE ABORTED BY ANY
+7998 '*                 KEYBOARD INPUT.  RETURNS BYTE IN B$.  USES Q$.
+7999 '**********************************************************************
+8000 WHILE LOC(2) = 0           'WAIT FOR COMM PORT INPUT
+8005 Q$ = INKEY$: IF Q$ <> "" THEN 4900 'IF ANY KEY PRESSED, THEN ABORT
+8010 WEND
+8020 B$ = INPUT$(1, #2)
+8030 RETURN
+8490 '************************************************************************
+8491 '*         DECIMAL TO HEX CONVERSION
+8492 '*                 INPUT:  K - INTEGER TO BE CONVERTED
+8493 '*                 OUTPUT: HX$ - TWO CHARACTER STRING WITH HEX CONVERSION
+8494 '************************************************************************
+8500 IF K > 255 THEN HX$="Too big":GOTO 8530
+8510 HX$=MID$(H$,K\16+1,1)            'UPPER NIBBLE
+8520 HX$=HX$+MID$(H$,(K MOD 16)+1,1)  'LOWER NIBBLE
+8530 RETURN
+9499 '******************** BOOT CODE ****************************************
+9500 DATA 86, 23                'LDAA   #$23
+9510 DATA B7, 10, 02            'STAA   OPT2    make port C wire or
+9520 DATA 86, FE                'LDAA   #$FE
+9530 DATA B7, 10, 03            'STAA   PORTC   light 1 LED on port C bit 0
+9540 DATA C6, FF                'LDAB   #$FF
+9550 DATA F7, 10, 07            'STAB   DDRC    make port C outputs
+9560 DATA CE, 0F, A0            'LDX    #4000   2msec at 2MHz
+9570 DATA 18, CE, E0, 00        'LDY    #$E000  Start of BUFFALO 3.4
+9580 DATA 7E, BF, 00            'JMP    $BF00   EPROM routine start address
+9590 '***********************************************************************

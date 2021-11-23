@@ -1,0 +1,34 @@
+    ******************** README 20/3/87 ************************
+
+This disc contains the 2 programs required to download data, in the
+form of Motorola S records to either the 68HC11's internal EEPROM or
+alternatively, an EEPROM attached to the 68HC11's external bus.
+The program names are:
+                      EELOAD.BAS   - source code written in MicroSoft BASIC
+                      EEPROGIX.BOO - binary code written in 68HC11 assembler
+
+The source of EEPROGIX.BOO is also provided for reference purposes.
+It is held in file EEPROGIX.ASC.
+
+As well as programming EEPROM, there is an option to verify the
+programmed data against an S record file.
+The appropriate protocol is selected from the information supplied by
+the user when the BASIC program EELOAD is run.
+To use the system, make sure the programs EELOAD.BAS and EEPROGIX.BOO
+are on the default disc drive. You will also need a BASIC operating
+system.
+Then just type in BASIC EELOAD (or BASICA EELOAD) and respond to the
+questions displayed on the screen. Most user errors are trapped.
+During programming of either internal or external EEPROM, each stored
+byte is verified. If there is an error, the loader program terminates
+transmission, and displays the message 'Communication breakdown'.
+This same message is displayed if the communication path to the 68HC11
+is actually disturbed (e.g. by reseting the MCU or disconnecting the
+cable).
+During verification, any differences between stored data and the S record
+file are displayed on the screen, and separated by a colon (:).
+For example, if the S record file contained hex 20 and the stored data
+was in fact 30, then the display would be 20:30 . If the echo option
+is disabled during verification, only the colon and erroneous byte are
+displayed.
+ -----------------------==========================---------------------

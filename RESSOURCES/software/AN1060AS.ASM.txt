@@ -1,0 +1,104 @@
+**************************************************
+* 68HC711E9 Duplicator Program for AN1060
+**************************************************
+
+*****
+* Equates - All reg addrs except INIT are 2-digit
+*           for direct addressing
+*****
+INIT	EQU	$103D	RAM, Reg mapping
+SPCR	EQU	$28	DWOM in bit-5
+PORTB	EQU	$04	Red LED = bit-1, Grn = bit-0
+*			Reset of prog socket = bit-7
+RESET	EQU	%10000000
+RED	EQU	%00000010
+GREEN	EQU	%00000001
+PORTE	EQU	$0A	Vpp Sense in bit-7, 1=ON
+SCSR	EQU	$2E	SCI status register
+*  TDRE, TC, RDRF, IDLE; OR, NF, FE, -
+TDRE	EQU	%10000000
+RDRF	EQU	%00100000
+SCDR	EQU	$2F	SCI data register
+PROGRAM	EQU	$BF00	EPROM prog utility in boot ROM
+EPSTRT	EQU	$D000	Starting address of EPROM
+
+	ORG	$B600	Start of EEPROM
+
+**************************************************
+*
+BEGIN	CLR	INIT	Moves Registers to $0000-3F
+	LDAA	#$04	Pattern for DWOM off, no SPI
+	STAA	SPCR	Turns off DWOM in EVBU MCU
+	LDAA	#RESET
+	STAA	PORTB	Release reset to target MCU
+WT4BRK	BRCLR	SCSR RDRF WT4BRK  Loop till char received
+	LDAA	#$FF	Leading char for bootload ...
+	STAA	SCDR	to target MCU
+	LDX	#BLPROG	Point at program for target
+BLLOOP	BSR	SEND1	Bootload to target
+	CPX	#ENDBPR	Past end ?
+	BNE	BLLOOP	Continue till all sent
+*****
+* Delay for about 4 char times to allow boot related
+* SCI communications to finish before clearing
+* Rx related flags
+	LDX	#1703	# of 6 cyc loops
+DLYLP	DEX		[3]
+	BNE	DLYLP	[3]	Total loop time = 6 cyc
+	LDAA	SCSR	Read status (RDRF will be set)
+	LDAA	SCDR	Read SCI data reg to clear RDRF
+*****
+* Now wait for $FF from target to indicate it's ready for
+* data to be programmed into EPROM
+WT4FF	BRCLR	SCSR RDRF WT4FF  Wait for RDRF
+	LDAA	SCDR	Clear RDRF, don't need data
+	LDX	#EPSTRT	Point at start of EPROM
+* Handle turn-on of Vpp
+WT4VPP	LDY	#21053	Delay counter (about 200ms)
+	BCLR	PORTB RED  Turn off RED LED
+DLYLP2	LDAA	PORTE	[3] Wait for Vpp to be ON
+	BPL	WT4VPP	[3] Vpp sense is on port E MSB
+	BSET	PORTB RED  [6] Turn on RED LED
+	DEY		[4]
+	BNE	DLYLP2	[3] Total loop time = 19 cyc
+* Vpp has been stable for 200ms
+
+	LDY	#EPSTRT	X=Tx pointer, Y=verify pointer
+	BSR	SEND1	Send first data to target
+DATALP	CPX	#0	X points at $0000 after last
+	BEQ	VERF	Skip send if no more
+	BSR	SEND1	Send another data char
+VERF	BRCLR	SCSR RDRF VERF Wait for Rx ready
+	LDAA	SCDR	Get char and clr RDRF
+	CMPA	0,Y	Does char verify ?
+	BEQ	VERFOK	Skip error if OK
+	BCLR	PORTB (RED+GREEN)  Turn off LEDs
+	BRA	DUNPRG	Done (programming failed)
+	
+VERFOK	INY		Advance verify pointer
+	BNE	DATALP	Continue till all done
+	
+	BSET	PORTB GREEN  Grn LED ON
+	
+DUNPRG	BCLR	PORTB (RESET+RED)  Red OFF, apply reset
+	BRA	*	Done so just hang
+	
+**************************************************
+* Subroutine to get & send an SCI char.  Also
+*  advances pointer (X).
+**************************************************
+SEND1	LDAA	0,X	Get a character
+TRDYLP	BRCLR	SCSR TDRE TRDYLP  Wait for TDRE
+	STAA	SCDR	Send character
+	INX		Advance pointer
+	RTS		** Return **
+
+**************************************************
+* Program to be bootloaded to target '711E9
+**************************************************
+BLPROG	LDAA	#$04	Pattern for DWOM off, no SPI
+	STAA	$1028	Turns off DWOM in target MCU
+* NOTE: Can't use direct addressing in target MCU because
+*       regs are located at $1000.
+	JMP	PROGRAM	Jumps to EPROM prog routine
+ENDBPR	EQU	*
