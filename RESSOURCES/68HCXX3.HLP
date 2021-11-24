@@ -1,0 +1,172 @@
+
+             Aide au programme 68HCXX3 (V2.01) EJ/11/2001/TT
+             ===============================================
+
+1.00 : Installation du programme.
+---------------------------------
+Le programme est constitu‚ de 5 fichiers :
+
+  - 68HCXX3.EXE  : Fichier ex‚cutable.
+  - NITRA3.TPU   : Fichier unit‚.
+  - 68HCXX3.HLP  : Fichier d'aide (Editable).
+  - A8NS3E.TSK   : Fichier BootLoader Programmation EEPROM.
+  - A8NS3P.TSK   : Fichier BootLoader Programmation EPROM.
+
+Ces 5 fichiers doivent ˆtre install‚s dans la mˆme directory. Si ce n'est pas
+le cas, le programme principal ne peut pas fonctionner correctement.
+La directory de base est C:\68HC11\, mais il vous est possible d'en d‚signer
+une autre. Pour cela, vous devez modifier le fichier source Pascal 68HCXX3,
+en changeant les constantes de directives.
+
+2.00 : BootLoaders.
+===================
+  Ce programme doit-ˆtre t‚l‚charg‚ dans la RAM du microcontr“leur avant toutes
+op‚rations sur ce dernier. Pour les microcontr“leurs disposant de 256 octets
+de RAM, le lancement du programme s'effectue dŠs la r‚ception du 256Šme octet.
+Pour ceux disposant d'un espace m‚moire sup‚rieur, le lancement s'effectue si
+la r‚ception cesse. De ce fait, il est possible de charger un BootLoader plus
+important et plus complet (Ex : 68HC11F1, 68HC11E1 ...).
+  Le BootLoader A8NS3E est compatible avec tous types de microcontr“leurs, mais
+ne permet que la programmation du registre CONFIG, et de la EEPROM.
+Le BootLoader A8NS3P permet de programmer l'EPROM des microcontr“leurs 711E9,
+et 711L6, mais ne donne pas accŠs au routines de la EEPROM.
+  La nouvelle version du BootLoader A8NS3x ‚limine le problŠme de l'attente de
+fin de programmation d'un octet. En effet, dŠs que l'octet est ‚crit, le
+programme renvoit la valeur (Accusez-r‚ception). En cas d'erreur, le cycle de
+programmation est interrompu. Cette modification donne plus de souplesse,
+quant … l'installation du programme PASCAL sur des PC d'ex‚cutions diff‚rentes.
+  De plus, la vitesse de communication a ‚t‚ augment‚e. Le chargement s'effec-
+-tue toujours … 1200 Bauds, mais ensuite, le programme communique … 9600 Bauds.
+Pour programmer 512 octets de EEPROM, il faut environ 7 secondes. Pour pro-
+-grammer $3000 octets d'EPROM, il faut environ 1 minute et 20 secondes.
+  Le Pascal gŠre 64 K de variables. Pour des uC disposant de 32k d'EPROM, il est
+n‚cessaire d'ouvrir en RAM PC un pseudo-disque pour le stockage des buffers.
+L'espace des buffers est actuellement de 16k maximum.
+
+2.01 : Commande de bases du BootLoader (A8NS3E).
+------------------------------------------------
+Elles sont au nombre de 4.
+
+  <L> : Lecture du registre CONFIG et de la EEPROM. Dans sun premier temps,
+le registre CONFIG du microcontr“leur est envoy‚, suivi des x octets que
+comprend la EEPROM. En dernier le status est envoy‚, suivi d'un retour
+chariot ($0D). Le status peut-avoir trois valeurs :
+
+                 < : Pas de programmation effectu‚e avant la lecture.
+                 F : D‚faut de programmation avant la lecture.
+                 > : Programmation r‚ussi avant la lecture.
+
+  Si l'op‚rateur re‡oit '<' lors de la lecture de la EEPROM, ceci lui indique
+qu'il n'a pas programm‚ le uC avant de le lire, et que le contenu de la EEPROM
+peut correspondre … une programmation ant‚rieure.
+  Si l'op‚rateur re‡oit 'F' lors de la lecture de la EEPROM, ceci lui indique
+qu'il y a eu un problŠme durant la programmation du uC.
+  Si l'op‚rateur re‡oit '>' lors de la lecture de la EEPROM, ceci lui atteste
+du bon d‚roulement de la programmation du uC.
+
+  <R> : Demande du Checksum du contenu de la EEPROM. Cette commande fait
+calculer au uC le Checksum modulo 16 de ses donn‚es ‚crites en EEPROM, et lui
+demande de les transmettre, suivi du status et d'un retour chariot ($0D).
+On peut ainsi v‚rifier rapidement du contenu de la EEPROM.
+
+  <S> : Demande du Checksum du programme BootLoader. Cette commande est
+utilis‚ lors du chargement du BootLoader, et permet de v‚rifier que ce dernier
+a correctement ‚t‚ t‚l‚charg‚. Vous pouvez ainsi v‚rifier la signature du
+BootLoader pr‚sent en RAM. Egalement suivi du status et de ($0D).
+La signature de ce BootLoader est : $4D47.
+
+  <P> : Programmation de la EEPROM du uC. Lors de cette commande, le uC
+efface entiŠrement la EEPROM, et attend les valeurs … ‚crire en EEPROM.
+Si la EEPROM contient 512 octets, il faudra envoyer au uC les 512 octets,
+mˆme si le programme en question ne les fait pas ($FF). Si une erreur de
+programmation survient, la boucle est interrompue, et le status 'F' suivi de
+($0D) est envoy‚ au PC. Il faut savoir que la valeur du registre configuration
+est transmis au uC avec le programme BootLoader. Ainsi, si vous d‚sirez
+changer la valeur du registre CONFIG, il vous faut recharger le BootLoader en
+prenant soin de modifier la valeur d'origine de ce registre … la demande.
+
+IMPORTANT : Si vous modifiez l'indicateur de pr‚sence de la EEPROM, il est
+souhaitable de recharger le BootLoader correspondant … la nouvelle configura-
+-tion. De mˆme, la valeur du registre CONFIG ‚tant latch‚ au Reset du uC, il
+faut donc recharger le BootLoader pour avoir la confirmation de la modifica-
+-tion.
+
+2.02 : Commande de bases du BootLoader (A8NS3P).
+------------------------------------------------
+Elles sont au nombre de 4.
+
+  <L> : Lecture du registre CONFIG et de la EPROM. Dans sun premier temps,
+le registre CONFIG du microcontr“leur est envoy‚, suivi des x octets que
+comprend la EPROM. En dernier le status est envoy‚, suivi d'un retour
+chariot ($0D). Le status peut-avoir trois valeurs :
+
+                 < : Pas de programmation effectu‚e avant la lecture.
+                 F : D‚faut de programmation avant la lecture.
+                 > : Programmation r‚ussi avant la lecture.
+
+  Si l'op‚rateur re‡oit '<' lors de la lecture de la EPROM, ceci lui indique
+qu'il n'a pas programm‚ le uC avant de le lire, et que le contenu de la EPROM
+peut correspondre … une programmation ant‚rieure.
+  Si l'op‚rateur re‡oit 'F' lors de la lecture de la EPROM, ceci lui indique
+qu'il y a eu un problŠme durant la programmation du uC.
+  Si l'op‚rateur re‡oit '>' lors de la lecture de la EPROM, ceci lui atteste
+du bon d‚roulement de la programmation du uC.
+
+  <R> : Demande du Checksum du contenu de la EPROM. Cette commande fait
+calculer au uC le Checksum modulo 16 de ses donn‚es ‚crites en EPROM, et lui
+demande de les transmettre, suivi du status et d'un retour chariot ($0D).
+On peur ainsi v‚rifier rapidement du contenu de la EPROM.
+
+  <S> : Demande du Checksum du programme BootLoader. Cette commande est
+utilis‚ lors du chargement du BootLoader, et permet de v‚rifier que ce dernier
+a correctement ‚t‚ t‚l‚charg‚. Vous pouvez ainsi v‚rifier la signature du
+BootLoader pr‚sent en RAM. Egalement suivi du status et de ($0D).
+La signature de ce BootLoader est : $4B84.
+
+  <P> : Programmation de la EPROM du uC. Lors de cette commande, le uC attend
+les valeurs … ‚crire en EPROM. Si la EPROM contient $3000 octets, il faudra
+envoyer au uC les $3000 octets, mˆme si le programme en question ne les fait
+pas ($FF). Si une erreur de programmation survient, la boucle est interrompue,
+et le status 'F' suivi de ($0D) est envoy‚ au PC. Il n'est pas possible de
+programmer le registre CONFIG dans ce cas. Vous devrez donc modifier ce
+dernier lors de la programmation de le EEPROM, avec le BootLoader A8NS3E.
+
+  Le temps de programmation en EPROM d'un octet est de 2 … 4 ms. La constante
+TIMPRO est actuellement de 3ms (600). R‚ajustez le cas ‚ch‚ant.
+  Veuillez … ne pas omettre la r‚sistance de 100 ohm entre la tension VPP, et
+la broche XIRQ du uC. La tension VPP est comprise entre 11,75 et 12,75 V.
+
+IMPORTANT:
+  Evitez la pr‚sence de VPP sur un uC qui de ne dispose pas d'EPROM !!!!
+
+3.00 : Programme Pascal 68HCXX3 (V2.01).
+========================================
+  Le programme PASCAL a ‚t‚ r‚vis‚, et n'est pas compatible avec le 68HCXX2.
+(Modifications dues au BootLoaders). Toutes les fonctions de bases sont
+identiques, mais certaines ont ‚t‚ rajout‚es afin de programmer les 711L6, et
+711E9 (6HC711E20 avec un autre BooLoader ... registre diff‚rent!).
+
+  Il est possible de programmer 10 types de uC. Les donn‚es sont rang‚es dans
+un tableau RECORD appel‚ MICRO. Vous pouvez modifier ces valeurs dans la
+proc‚dure Definition_Micros.
+
+  Le 68HCXX3 a deux buffers de stockage de donn‚es. L'un correspond au fichier
+(.S19) pr‚alablement lu, et l'autre, aux donn‚es envoy‚es par le uC lors de
+sa lecture. Il est a noter que lors de la programmation du uC, les donn‚es
+envoy‚es sont issues du buffer (FIC). Si on lit un uC, les donn‚es sont
+stock‚es dans le buffer (EEP). On peut transf‚rer ces derniŠres dans le buffer
+(FIC) afin de programmer un autre uC avec les donn‚es du premier.
+
+  Le programme ne peut charger que des fichiers du type S19 (Format Motorola).
+De mˆme, le stockage de fichiers s'effectue dans ce format.
+
+3.01 : Programme Pascal 68HCXX3 (V2.02).
+========================================
+  Une fonction suppl‚mentaires a ‚t‚ rajout‚e au menu. Programmation auto-
+-matique offre la possibilit‚ de programmer en chaŒne les uC. Dans un premier
+temps, le BootLoader est charg‚, puis l'(E)EPROM, et enfin le contenu de cette
+derniŠre est compar‚ … la source.
+  L'acc‚s aux fichiers a ‚t‚ corrig‚ (Chemin).
+Pour tous renseignements, veuillez contacter :
+
+EJ au 03-21-47-18-66

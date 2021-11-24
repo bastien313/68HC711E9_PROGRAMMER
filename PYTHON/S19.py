@@ -140,7 +140,7 @@ def getAdressList(lineFile):
     adress = addr_extract_whole(lineFile)
     adressOut = []
     for line in adress:
-        if line is not 0:
+        if line != 0:
             adressOut.append(int(line))
     return adressOut
     
@@ -150,7 +150,7 @@ def getDataList(lineFile):
     data = data_extract_whole(lineFile)
     dataOut = []
     for line in data:
-        if line is not 0:
+        if line != 0:
             dataLine = []
             for pos in range(0,len(line),2):
                 strHex = line[pos] + line[pos+1]
@@ -158,25 +158,36 @@ def getDataList(lineFile):
             dataOut.append(dataLine)
     return dataOut
     
-def getDataSize    
-
+def getDataSize(lineFile):
+    adressList = getAdressList(lineFile)
+    data = getDataList(lineFile)
+   
+    maxAdress = 0
+    idMax = 0
+    for idLine in range(0,len(adressList)):
+        if adressList[idLine] > maxAdress:
+            maxAdress = adressList[idLine]
+            idMax = idLine
+        
+    return maxAdress + len(data[idMax])
+    
+def getStartAdress(lineFile):
+    adress = getAdressList(lineFile)
+    return min(adress)
 
 
 def makeBinaryList(lineFile):
+    s9_number = s_count(lineFile,9)
+    minAdress = getStartAdress(lineFile)
+    maxAdress = getDataSize(lineFile)
+    
     adress = getAdressList(lineFile)
     data = getDataList(lineFile)
-    
-    s9_number = s_count(lineFile,9)
-    minAdress = min(adress)
-    maxAdress = max(adress)
-    
-    print(minAdress)
-    print(maxAdress)
     
     dataOut = []
     
     for num in range(0,maxAdress - minAdress):
-        dataOut.append(0)
+        dataOut.append(0xFF)
     
     for idLine in range(len(data)):
         idByte = 0
@@ -184,9 +195,20 @@ def makeBinaryList(lineFile):
             dataOut[(adress[idLine] + idByte) - minAdress] = byte
             idByte +=1
     
+    f.close()
     return dataOut
         
     
+
+def makeLineList(fileName):
+    f=open(file_name,'r')
+    f_data=f.read()
+    g='\r\n'
+    if g in f_data:
+        return f_data.split(g)
+    else:
+        return f_data.split('\n')
+    f.close
     
     
     
