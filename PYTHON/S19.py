@@ -141,7 +141,7 @@ def getAdressList(lineFile):
     adressOut = []
     for line in adress:
         if line != 0:
-            adressOut.append(int(line))
+            adressOut.append(int(line,16))
     return adressOut
     
 def getDataList(lineFile):
@@ -169,7 +169,7 @@ def getDataSize(lineFile):
             maxAdress = adressList[idLine]
             idMax = idLine
         
-    return maxAdress + len(data[idMax])
+    return maxAdress + len(data[idMax]) - getStartAdress(lineFile)
     
 def getStartAdress(lineFile):
     adress = getAdressList(lineFile)
@@ -179,7 +179,7 @@ def getStartAdress(lineFile):
 def makeBinaryList(lineFile):
     s9_number = s_count(lineFile,9)
     minAdress = getStartAdress(lineFile)
-    maxAdress = getDataSize(lineFile)
+    maxAdress = getDataSize(lineFile) + minAdress
     
     adress = getAdressList(lineFile)
     data = getDataList(lineFile)
@@ -195,13 +195,12 @@ def makeBinaryList(lineFile):
             dataOut[(adress[idLine] + idByte) - minAdress] = byte
             idByte +=1
     
-    f.close()
     return dataOut
         
     
 
 def makeLineList(fileName):
-    f=open(file_name,'r')
+    f=open(fileName,'r')
     f_data=f.read()
     g='\r\n'
     if g in f_data:
